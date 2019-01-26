@@ -152,7 +152,7 @@ export const addScore = async (event, context, cb) => {
       throw new Error("ce code n'est pas disponible");
     }
 
-    const { closingAt, available, points } = codeResult.Item;
+    const { closingAt, available, points, label, createdAt } = codeResult.Item;
 
     if (new Date(closingAt) < new Date()) {
       throw new Error('trop tard');
@@ -176,14 +176,15 @@ export const addScore = async (event, context, cb) => {
     const Item = {
       id: uuid(),
       pseudo,
-      code,
       points,
-      createdAt: new Date().getTime(),
+      label,
+      code,
+      createdAt,
     };
 
     await client
       .put({
-        TableName: 'scoresStats',
+        TableName: 'scores1',
         Item,
       })
       .promise();
@@ -218,15 +219,15 @@ export const addScore = async (event, context, cb) => {
 
 export const exportCSV = async (event, context, cb) => {
   try {
-    console.log(`Requête ${JSON.stringify(event.body, null, 2)}`);
-    const { minTmp, maxTmp } = event.pathParameters;
+    const { minDate: minTmp, maxDate: maxTmp } = event.pathParameters;
     const minDate = new Date(minTmp).getTime();
     const maxDate = new Date(maxTmp).getTime();
+    console.log(`Min ${minDate} => ${minTmp} : Max ${maxDate} => ${maxTmp}`);
 
     const data = await client
-      .get({
-        TableName: 'scoresStats',
-        KeyConditionExpression: 'createdAt > :minDate and createdAt < :maxDate',
+      .scan({
+        TableName: 'scores1',
+        FilterExpression: 'createdAt > :minDate and createdAt < :maxDate',
         ExpressionAttributeValues: {
           ':minDate': minDate,
           ':maxDate': maxDate,
@@ -238,15 +239,42 @@ export const exportCSV = async (event, context, cb) => {
       throw new Error('pas de données');
     }
 
-    const result = '';
+    const events = data.Items.reduce((r, item) => {
+      r[item.code] = { date: item.createdAt, code: item.code, label: item.label };
+      return r;
+    }, {});
+    const orderedEvents = Object.getOwnPropertyNames(events).sort((a, b) => events[a].date - events[b].date);
+    orderedEvents.forEach((code, i) => {
+      events[code].order = i;
+    });
+
+    const scoresByUser = data.Items.reduce((r, item) => {
+      if (!r[item.pseudo]) r[item.pseudo] = [];
+      const order = events[item.code].order;
+      r[item.pseudo][order] = (r[item.pseudo][order] || 0) + item.points;
+      return r;
+    }, {});
+
+    let result = '';
+    orderedEvents.forEach(code => {
+      const event = events[code];
+      console.log(JSON.stringify(event, null, 2));
+      result += `;${event.label} (${new Date(event.date).toLocaleDateString()})`;
+    });
+    result += '\n';
+    for (let pseudo in scoresByUser) {
+      result += pseudo;
+      scoresByUser[pseudo].forEach(score => (result += ';' + score));
+      result += '\n';
+    }
     cb(null, {
       statusCode: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true,
-        'Content-Type': 'application/json',
+        'Content-Type': 'text/csv',
       },
-      body: JSON.stringify(data.Items),
+      body: result,
     });
   } catch (e) {
     console.error(e);

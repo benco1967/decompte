@@ -22,6 +22,8 @@ provider:
         - { "Fn::GetAtt": ["CodesTable", "Arn" ] }
         - { "Fn::GetAtt": ["UsersTable", "Arn" ] }
         - { "Fn::GetAtt": ["ScoresTable", "Arn" ] }
+  apiKeys:
+    - malo
 
 functions:
   createCode:
@@ -50,7 +52,7 @@ functions:
     handler: handler.exportCSV
     events:
       - http:
-          path: csv/{minDate}/{maxDate}
+          path: csv/{minDate}/{maxDate}/scores.csv
           method: GET
           cors: true
           request:
@@ -92,17 +94,13 @@ resources:
     ScoresTable:
       Type: 'AWS::DynamoDB::Table'
       Properties:
-        TableName: scoresStats
+        TableName: scores1
         AttributeDefinitions:
           - AttributeName: id
             AttributeType: S
-          - AttributeName: createdAt
-            AttributeType: N
         KeySchema:
           - AttributeName: id
             KeyType: HASH
-          - AttributeName: createdAt
-            KeyType: RANGE
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
