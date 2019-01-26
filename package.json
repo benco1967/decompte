@@ -1,0 +1,23 @@
+{
+  "name": "decompte",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.391.0",
+    "http-errors": "^1.7.1",
+    "uuid": "^3.3.2"
+  },
+  "devDependencies": {
+    "prettier": "^1.15.3",
+    "serverless-domain-manager": "^2.6.12",
+    "serverless-webpack": "^5.2.0",
+    "webpack": "^4.28.4"
+  }
+}
