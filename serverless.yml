@@ -3,6 +3,20 @@ service:
 
 plugins:
   - serverless-webpack
+  - serverless-s3-sync
+
+custom:
+  s3Sync:
+    - bucketName: decompte-site
+      localDir: '../decompte-static/build'
+      acl: public-read # optional
+      followSymlinks: true # optional
+      defaultContentType: text/html # optional
+      params: # optional
+        - index.html:
+            CacheControl: 'no-cache'
+        - "*.js":
+            CacheControl: 'public, max-age=31536000'
 
 provider:
   name: aws
@@ -64,6 +78,14 @@ functions:
 
 resources:
   Resources:
+    SiteBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: decompte-site
+        AccessControl: PublicRead
+        WebsiteConfiguration:
+          IndexDocument: index.html
+          ErrorDocument: error.html
     CodesTable:
       Type: 'AWS::DynamoDB::Table'
       Properties:
