@@ -8,10 +8,16 @@ for (let c = 0; c < 36; c++) {
 const CODE_LENGTH = 4;
 
 const client = new DocumentClient();
-
+/**
+ *
+ * @param event
+ * @param context
+ * @param cb
+ * @returns {Promise<void>}
+ */
 export const createCode = async (event, context, cb) => {
   try {
-    console.log(`Requête ${JSON.stringify(event.body, null, 2)}`);
+    console.log(`Requête ${event.body}`);
     const { points, label, nbPlayers, nbDays } = { nbDays: 1, nbPlayers: 1, ...JSON.parse(event.body) };
 
     let code = '';
@@ -78,10 +84,16 @@ export const createCode = async (event, context, cb) => {
     });
   }
 };
-
+/**
+ *
+ * @param event
+ * @param context
+ * @param cb
+ * @returns {Promise<void>}
+ */
 export const createUser = async (event, context, cb) => {
   try {
-    console.log(`Requête ${JSON.stringify(event.body, null, 2)}`);
+    console.log(`Requête ${event.body}`);
     const { pseudo } = JSON.parse(event.body);
 
     const prev = await client
@@ -136,11 +148,18 @@ export const createUser = async (event, context, cb) => {
     });
   }
 };
-
+/**
+ *
+ * @param event
+ * @param context
+ * @param cb
+ * @returns {Promise<void>}
+ */
 export const addScore = async (event, context, cb) => {
   try {
-    console.log(`Requête ${JSON.stringify(event.body, null, 2)}`);
+    console.log(`Requête ${event.body}`);
     const { code, pseudo } = JSON.parse(event.body);
+    console.log(`Requête ${event.body}`);
 
     const codeResult = await client
       .get({
@@ -161,17 +180,16 @@ export const addScore = async (event, context, cb) => {
     if (available <= 0) {
       throw new Error("il n'y a plus de points à distribuer");
     }
-
-    await client
-      .update({
-        TableName: 'codes',
-        Key: { code },
-        UpdateExpression: 'SET available = available + :val',
-        ExpressionAttributeValues: {
-          ':val': -1,
-        },
-      })
-      .promise();
+    const updateParams = {
+      TableName: 'codes',
+      Key: { code },
+      UpdateExpression: 'SET available = available + :val',
+      ExpressionAttributeValues: {
+        ':val': -1,
+      },
+    };
+    console.log(`update params ${JSON.stringify(updateParams, null, 2)}`);
+    await client.update(updateParams).promise();
 
     const Item = {
       id: uuid(),
@@ -181,7 +199,7 @@ export const addScore = async (event, context, cb) => {
       code,
       createdAt,
     };
-
+    console.log(`score to save ${JSON.stringify(Item, null, 2)}`);
     await client
       .put({
         TableName: 'scores1',
