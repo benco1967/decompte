@@ -202,7 +202,7 @@ export const addScore = async (event, context, cb) => {
     console.log(`score to save ${JSON.stringify(Item, null, 2)}`);
     await client
       .put({
-        TableName: 'scores1',
+        TableName: 'scores',
         Item,
       })
       .promise();
@@ -239,12 +239,12 @@ export const exportCSV = async (event, context, cb) => {
   try {
     const { minDate: minTmp, maxDate: maxTmp } = event.pathParameters;
     const minDate = new Date(minTmp).getTime();
-    const maxDate = new Date(maxTmp).getTime();
+    const maxDate = new Date(maxTmp).getTime() + 24 * 60 * 60 * 1000;
     console.log(`Min ${minDate} => ${minTmp} : Max ${maxDate} => ${maxTmp}`);
 
     const data = await client
       .scan({
-        TableName: 'scores1',
+        TableName: 'scores',
         FilterExpression: 'createdAt > :minDate and createdAt < :maxDate',
         ExpressionAttributeValues: {
           ':minDate': minDate,

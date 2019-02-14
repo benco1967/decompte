@@ -17,6 +17,16 @@ custom:
             CacheControl: 'no-cache'
         - "*.js":
             CacheControl: 'public, max-age=31536000'
+    - bucketName: decompte-admin-site
+      localDir: '../decompte-admin/build'
+      acl: public-read # optional
+      followSymlinks: true # optional
+      defaultContentType: text/html # optional
+      params: # optional
+        - index.html:
+            CacheControl: 'no-cache'
+        - "*.js":
+            CacheControl: 'public, max-age=31536000'
 
 provider:
   name: aws
@@ -36,8 +46,6 @@ provider:
         - { "Fn::GetAtt": ["CodesTable", "Arn" ] }
         - { "Fn::GetAtt": ["UsersTable", "Arn" ] }
         - { "Fn::GetAtt": ["ScoresTable", "Arn" ] }
-  apiKeys:
-    - malo
 
 functions:
   createCode:
@@ -86,6 +94,14 @@ resources:
         WebsiteConfiguration:
           IndexDocument: index.html
           ErrorDocument: error.html
+    AdminSiteBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: decompte-admin-site
+        AccessControl: PublicRead
+        WebsiteConfiguration:
+          IndexDocument: index.html
+          ErrorDocument: error.html
 
     CodesTable:
       Type: 'AWS::DynamoDB::Table'
@@ -117,7 +133,7 @@ resources:
     ScoresTable:
       Type: 'AWS::DynamoDB::Table'
       Properties:
-        TableName: scores1
+        TableName: scores
         AttributeDefinitions:
           - AttributeName: id
             AttributeType: S
