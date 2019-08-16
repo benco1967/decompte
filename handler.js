@@ -11,7 +11,7 @@ const client = new DocumentClient();
 /**
  *
  * @param event
- * @param context
+ * @param context-
  * @param cb
  * @returns {Promise<void>}
  */
@@ -148,6 +148,38 @@ export const createUser = async (event, context, cb) => {
     });
   }
 };
+
+export const getUsers = async (event, context, cb) => {
+  try {
+    const result = await client
+      .scan({
+        TableName: 'users',
+      })
+      .promise();
+
+    console.log(`trouvé ${result.Items.length} users`);
+    cb(null, {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(result.Items),
+    });
+  } catch (e) {
+    console.error(e);
+    cb(null, {
+      statusCode: 400,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ message: e.message }),
+    });
+  }
+};
 /**
  *
  * @param event
@@ -155,61 +187,52 @@ export const createUser = async (event, context, cb) => {
  * @param cb
  * @returns {Promise<void>}
  */
-export const addScore = async (event, context, cb) => {
+export const addScores = async (event, context, cb) => {
   try {
     console.log(`Requête ${event.body}`);
-    const { code, pseudo } = JSON.parse(event.body);
+    const { label, points, players } = JSON.parse(event.body);
     console.log(`Requête ${event.body}`);
 
-    const codeResult = await client
-      .get({
-        TableName: 'codes',
-        Key: { code },
-      })
-      .promise();
-    if (!codeResult.Item) {
-      throw new Error("ce code n'est pas disponible");
+    const createdAt = new Date().getTime();
+    let code = '';
+    // création du code
+    while (code === '') {
+      for (let i = 0; i < CODE_LENGTH; i++) {
+        code += CHARS[Math.floor(Math.random() * CHARS.length)];
+      }
+      const result = await client
+        .get({
+          TableName: 'codes',
+          Key: { code },
+        })
+        .promise();
+      if (result.Item) {
+        code = '';
+      }
     }
 
-    const { closingAt, available, points, label, createdAt } = codeResult.Item;
-
-    if (new Date(closingAt) < new Date()) {
-      throw new Error('trop tard');
-    }
-
-    if (available <= 0) {
-      throw new Error("il n'y a plus de points à distribuer");
-    }
-    const updateParams = {
-      TableName: 'codes',
-      Key: { code },
-      UpdateExpression: 'SET available = available + :val',
-      ExpressionAttributeValues: {
-        ':val': -1,
-      },
-    };
-    console.log(`update params ${JSON.stringify(updateParams, null, 2)}`);
-    await client.update(updateParams).promise();
-
-    const Item = {
-      id: uuid(),
-      pseudo,
-      points,
-      label,
-      code,
-      createdAt,
-    };
-    console.log(`score to save ${JSON.stringify(Item, null, 2)}`);
-    await client
-      .put({
-        TableName: 'scores',
-        Item,
-      })
-      .promise();
-
+    await Promise.all(
+      players.map(async pseudo => {
+        const Item = {
+          id: uuid(),
+          pseudo,
+          points,
+          label,
+          code,
+          createdAt,
+        };
+        console.log(`score to save ${JSON.stringify(Item, null, 2)}`);
+        await client
+          .put({
+            TableName: 'scores',
+            Item,
+          })
+          .promise();
+      }),
+    );
     const result = {
       points,
-      pseudo,
+      code,
     };
     console.log(`Nouveau score ${JSON.stringify(result, null, 2)}`);
     cb(null, {
@@ -267,7 +290,12 @@ export const exportCSV = async (event, context, cb) => {
     });
 
     const scoresByUser = data.Items.reduce((r, item) => {
-      if (!r[item.pseudo]) r[item.pseudo] = [];
+      if (!r[item.pseudo]) {
+        const tmp = new Array(orderedEvents.length);
+        tmp.fill(0);
+        r[item.pseudo] = tmp;
+      }
+
       const order = events[item.code].order;
       r[item.pseudo][order] = (r[item.pseudo][order] || 0) + item.points;
       return r;
